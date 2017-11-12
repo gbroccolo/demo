@@ -65,7 +65,7 @@
         local_action: lineinfile 
                       dest="./hosts" 
                       regexp={{ item.public_ip }} 
-                      insertafter="[demoserver]" line={{ item.public_ip }}
+                      insertafter="[demoserver]" line="{{ item.public_ip }} ansible_connection=ssh remote_user=ubuntu ansible_python_interpreter=python"
         with_items: "{{ ec2.instances }}"
 
       - name: Wait for SSH to come up

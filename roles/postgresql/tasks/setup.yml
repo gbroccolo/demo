@@ -1,0 +1,72 @@
+---
+
+- name: disable THP usage by the kernel
+  lineinfile: 
+    dest: /etc/rc.local
+    line: "{{ item.line }}"
+    insertbefore: "exit 0"
+    state: present
+  with_items:
+    - { line: "echo never > /sys/kernel/mm/transparent_hugepage/enabled" }
+    - { line: "echo never > /sys/kernel/mm/transparent_hugepage/defrag" }
+  become: true
+
+- name: configure postgresql client authentication
+  copy:
+    src: pg_hba.conf
+    dest: "/etc/postgresql/{{ postgresql_version }}/main/pg_hba.conf"
+    owner: postgres
+    group: postgres
+  become: true
+  notify:
+    - reload postgresql
+    
+- name: configure postgresql
+  copy:
+    src: postgresql.conf
+    dest: "/etc/postgresql/{{ postgresql_version }}/main/postgresql.conf"
+    owner: postgres
+    group: postgres
+  become: true
+  notify:
+    - restart postgresql
+
+- name: ensure postgresql is running
+  service:
+    name: postgresql
+    state: started
+  become: true
+
+- name: ensure postgresql is available
+  wait_for:
+    port: 5432
+    state: started
+
+- name: ensure db created
+  become: true
+  become_user: postgres
+  postgresql_db:
+    db: "{{ postgresql_db_name }}"
+    encoding: 'UTF-8'
+    lc_collate: 'en_US.UTF-8'
+    lc_ctype: 'en_US.UTF-8'
+    template: 'template0'
+    state: present
+
+- name: ensure user created
+  become: true
+  become_user: postgres
+  postgresql_user:
+    user: "{{ postgresql_user_name }}"
+    password: "{{ postgresql_user_password }}"
+    encrypted: yes
+    priv: ALL
+    db: "{{ postgresql_db_name }}"
+    state: present
+
+- name: ensure user does not have unnecessary privileges
+  become: true
+  become_user: postgres
+  postgresql_user:
+    user: "{{ postgresql_user_name }}"
+    role_attr_flags: NOSUPERUSER,NOCREATEDB

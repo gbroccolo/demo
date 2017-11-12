@@ -1,0 +1,32 @@
+---
+
+- name: add postgresql apt repository
+  apt_repository:
+    repo: "deb http://apt.postgresql.org/pub/repos/apt/ {{ ansible_distribution_release }}-pgdg main"
+  become: true
+  register: postgresql_repository_added
+
+- name: add apt key for postgresql repository
+  apt_key:
+    url: "http://apt.postgresql.org/pub/repos/apt/ACCC4CF8.asc"
+    state: present
+  become: true
+  register: postgresql_repository_key_added
+  until: "{{ postgresql_repository_key_added|succeeded }}"
+  delay: 5
+
+- name: update apt cache
+  apt:
+    update_cache: yes
+  become: true
+  when: "{{ postgresql_repository_added.changed or postgresql_repository_key_added.changed }}"
+
+- name: install postgresql packages
+  apt:
+    name: "{{ item }}"
+    force: yes
+  with_items:
+    - "postgresql-{{ postgresql_version }}"
+    - python-psycopg2
+    - "postgresql-contrib-{{ postgresql_version }}"
+  become: true
