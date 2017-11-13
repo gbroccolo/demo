@@ -1,0 +1,40 @@
+---
+
+- name: create supervisord config folder
+  file:
+    dest: /etc/supervisor.d
+    state: directory
+    mode: 0755
+  become: true
+
+- name: create supervisord log folder
+  file:
+    dest: /var/log/supervisor
+    state: directory
+    mode: 0755
+  become: true
+
+- name: configure supervisord
+  copy:
+    src: supervisord.conf
+    dest: /etc/supervisord.conf
+    mode: 0644
+  become: true
+  notify:
+    - restart supervisord
+
+- name: create supervisord init script
+  copy:
+    src: supervisord_init.sh
+    dest: /etc/init.d/supervisord
+    mode: 0755
+  become: true
+  notify:
+    - restart supervisord
+
+- name: ensure supervisor is running and it starts automatically during system startup
+  service:
+    name: supervisord
+    state: started
+    enabled: yes
+  become: true

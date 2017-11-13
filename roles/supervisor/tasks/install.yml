@@ -1,0 +1,30 @@
+---
+
+- name: update apt cache
+  apt:
+    update_cache: yes
+  become: true
+
+- name: install python
+  apt:
+    name: "{{ item }}"
+    force: yes
+  with_items:
+    - python
+    - python-dev
+    - python-setuptools
+  become: true
+
+- name: install pip and virtualenv
+  easy_install:
+    name: "{{ item }}"
+  with_items:
+    - pip
+    - virtualenv
+  become: true
+
+- name: install supervisor
+  pip:
+    name: supervisor
+    version: "{{ supervisord_version }}"
+  become: true
