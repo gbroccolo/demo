@@ -1,0 +1,29 @@
+\c {{ postgresql_db_name }}
+SET ROLE TO {{ postgresql_user_name }};
+
+CREATE TABLE sessions (
+    sessionid bigint PRIMARY KEY,
+    device integer,
+    duration integer
+);
+CREATE INDEX ON sessions USING btree(sessionid);
+
+CREATE TABLE clicks (
+    sessionid bigint REFERENCES sessions (sessionid),
+    pageviewid bigint PRIMARY KEY,
+    total_clicks integer,
+    resp_clicks integer,
+    unresp_clicks integer
+);
+CREATE INDEX ON clicks USING btree(pageviewid);
+CREATE INDEX clicks_fkey_idx ON clicks USING btree(sessionid);
+
+CREATE TABLE mouse_moves (
+    sessionid bigint REFERENCES sessions (sessionid),
+    pageviewid bigint PRIMARY KEY,
+    mouse_distance integer,
+    duration_moves integer,
+    no_moves integer
+);
+CREATE INDEX ON mouse_moves USING btree(pageviewid);
+CREATE INDEX mouse_moves_fkey_idx ON mouse_moves USING btree(sessionid);

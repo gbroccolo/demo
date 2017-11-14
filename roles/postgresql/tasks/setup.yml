@@ -70,3 +70,17 @@
   postgresql_user:
     user: "{{ postgresql_user_name }}"
     role_attr_flags: NOSUPERUSER,NOCREATEDB
+
+- name: upload the DB schema script
+  become: true
+  template:
+    src: create_schema.sql.j2
+    dest: /var/lib/postgresql/create_schema.sql
+    owner: postgres
+    group: postgres
+    mode: 0644
+
+- name: create the DB schema
+  become: true
+  become_user: postgres
+  shell: psql -f /var/lib/postgresql/create_schema.sql
