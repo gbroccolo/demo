@@ -1,0 +1,13 @@
+---
+
+postgresql_db_name: 'demo'
+postgresql_user_name: 'demo'
+postgresql_user_password: 'demo'
+postgresql_port: '5432'
+
+injector_csvs: '"table_task_1_large_polluted.csv", "table_task_2_large_polluted.csv", "table_task_3_large_polluted.csv"'
+
+injector_user: 'ubuntu'
+injector_group: 'ubuntu'
+work_dir: '/home/ubuntu/injector'
+log_dir: '/var/log/injector'

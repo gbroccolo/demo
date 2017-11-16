@@ -1,0 +1,5 @@
+---
+
+- import_tasks: create_venv.yml
+- import_tasks: setup_script.yml
+- import_tasks: config_service.yml

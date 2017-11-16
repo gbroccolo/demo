@@ -1,0 +1,22 @@
+---
+
+- name: create injector dirs
+  file:
+    path: "{{ item }}"
+    owner: "{{ injector_user }}"
+    group: "{{ injector_group }}"
+    mode: 0755
+    state: directory
+  with_items:
+    - "{{ work_dir }}"
+    - "{{ log_dir }}"
+
+- name: create injector virtualenv
+  become: yes
+  become_user: "{{ druid_user }}"
+  pip:
+    name: "{{ item }}"
+    virtualenv: "{{ work_dir }}/venv"
+  with_items:
+    - psycopg2
+    - urllib3[secure]==1.22 
