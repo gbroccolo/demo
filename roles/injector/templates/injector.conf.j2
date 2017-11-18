@@ -1,0 +1,15 @@
+[program:injector]
+command={{ work_dir }}/venv/bin/python injector.py -d {{ datasource_dir }} -w 2
+directory={{ work_dir }}
+user={{ injector_user }}
+autostart=True
+autorestart=True
+startsecs=2
+stopwaitsecs=10
+priority=20
+killasgroup=true
+stdout_logfile={{ log_dir }}/injector.stdout
+stderr_logfile={{ log_dir }}/injector.stderr
+
+[group:injector]
+programs=injector

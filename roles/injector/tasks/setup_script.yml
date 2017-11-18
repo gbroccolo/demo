@@ -1,0 +1,17 @@
+---
+
+- name: install injector.py
+  template: 
+    src: injector.py.j2
+    dest: "{{ work_dir }}/injector.py"
+    owner: "{{ injector_user }}"
+    group: "{{ injector_group }}"
+    mode: 0755
+
+- name: install pgpass
+  template: 
+    src: pgpass.j2
+    dest: "/home/{{ injector_user }}/.pgpass"
+    owner: "{{ injector_user }}"
+    group: "{{ injector_group }}"
+    mode: 0600

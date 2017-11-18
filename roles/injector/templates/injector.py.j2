@@ -20,19 +20,28 @@ from concurrent import futures
 from tabulate import tabulate
 
 
+def is_int(s):
+    try:
+        if int(s) > 0:
+            return True
+        return False
+    except ValueError:
+        return False
+
+
 class InjectorService:
 
     def __init__(self, datasource, workers, logger):
         self.running = True
         self.csv = [{{ injector_csvs }}]
         self.start = False
+        self.done = False
         self.session = False
         self.datasource = datasource
         self.workers = workers
         self.logger = logger
 
         self.pg_conn()
-
 
     def pg_conn(self):
         try:
@@ -46,15 +55,6 @@ class InjectorService:
             sys.exit(1)
         self.conn = conn
 
-
-    def is_int(self, s):
-        try:
-            int(s)
-            return True
-        except ValueError:
-            return False
-
-
     def worker(chunk, self, datasource):
         SQL_INS = ""
         if datasource.split('_')[2] == '3':
@@ -62,7 +62,7 @@ class InjectorService:
             INSERT INTO sessions(sessionid,
                                  device,
                                  duration)
-                VALUES (%s, %s, %s) 
+                VALUES (%s, %s, %s)
             """
         elif datasource.split('_')[2] == '2':
             SQL_INS = """
@@ -101,7 +101,6 @@ class InjectorService:
         self.conn.commit()
         cur.close()
 
-
     def injector(self, datasource):
         self.logger.info(('Thread injector for source '
                           '%s started') % datasource)
@@ -117,26 +116,28 @@ class InjectorService:
                 if not self.session or \
                   datasource.split('_')[2] != '3':
                     self.logger.info('no new data for %s, sleeping.' %
-                            datasource)
+                                     datasource)
                     time.sleep(5)
                     continue
+                self.done = False
                 task = partial(self.worker, datasource)
-                with futures.ThreadPoolExecutor(max_workers=self.workers) \
-                     as executor:
+                with futures.ThreadPoolExecutor(
+                        max_workers=self.workers) as executor:
                     futures_instances = []
                     with open(path) as csvfile:
                         reader = csv.reader(csvfile)
-                        chunks = [reader[i:i + 100] \
+                        chunks = [reader[i:i + 100]
                                   for i in xrange(0, len(reader), 100)]
                         for c in chunks:
-                            futures_instances.append(executor.submit(task, rec))
+                            futures_instances.append(executor.submit(task,
+                                                                     rec))
                         futures.wait(futures_instances)
 
                         if datasource.split('_')[2] == '3':
                             self.session = True
                         ren = os.path.join(self.datasource,
-                                           os.path.splitext(datasource)[0] + \
-                                                            ".done")
+                                           os.path.splitext(
+                                               datasource)[0] + ".done")
                         os.rename(path, ren)
             else:
                 self.logger.info('no new data for %s, sleeping.' % datasource)
@@ -149,7 +150,19 @@ class InjectorService:
         while self.running:
             for f in self.csv:
                 path = os.path.join(self.datasource, f)
+                if os.path.isfile(path) and self.done:
+                    self.start = True
+                else:
+                    self.start = False
+                    break
 
+            d = 0
+            for g in os.listdir(self.datasource):
+                if g.endswith('.done'):
+                    d += 1
+            if d == 3:
+                self.done = True
+                os.remove(os.path.join(self.datasource, g))
 
     def start(self):
         self.running = True
@@ -216,6 +229,7 @@ def set_loggers(destination):
     logger.addHandler(handler)
 
     return logger
+
 
 if __name__ == '__main__':
     sys.exit(main())

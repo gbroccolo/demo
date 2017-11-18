@@ -1,6 +1,7 @@
 ---
 
 - name: create injector dirs
+  become: yes
   file:
     path: "{{ item }}"
     owner: "{{ injector_user }}"
@@ -10,13 +11,15 @@
   with_items:
     - "{{ work_dir }}"
     - "{{ log_dir }}"
+    - "{{ datasource_dir }}"
 
 - name: create injector virtualenv
   become: yes
-  become_user: "{{ druid_user }}"
+  become_user: "{{ injector_user }}"
   pip:
     name: "{{ item }}"
     virtualenv: "{{ work_dir }}/venv"
   with_items:
     - psycopg2
-    - urllib3[secure]==1.22 
+    - futures
+    - tabulate

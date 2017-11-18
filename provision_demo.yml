@@ -1,4 +1,5 @@
 - hosts: demoserver
   roles:
-    - postgresql
-    - supervisor
+    - { role: postgresql, tags: ["postgresql"] }
+    - { role: supervisor, tags: ["supervisor"] }
+    - { role: injector, tags: ["injector"] }

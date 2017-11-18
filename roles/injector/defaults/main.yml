@@ -11,3 +11,6 @@ injector_user: 'ubuntu'
 injector_group: 'ubuntu'
 work_dir: '/home/ubuntu/injector'
 log_dir: '/var/log/injector'
+datasource_dir: '/srv/data'
+injector_log_destination: "{{ log_dir }}/injector.log"
+injector_log_level: 'INFO'
