@@ -12,21 +12,10 @@ import psycopg2.extras
 import threading
 import csv
 import os
-import os.pathi
+import os.path
 import time
-
-from functools import partial
-from concurrent import futures
-from tabulate import tabulate
-
-
-def is_int(s):
-    try:
-        if int(s) > 0:
-            return True
-        return False
-    except ValueError:
-        return False
+import sys
+import logging
 
 
 class InjectorService:
@@ -35,36 +24,31 @@ class InjectorService:
         self.running = True
         self.csv = [{{ injector_csvs }}]
         self.start = False
-        self.done = False
         self.session = False
         self.datasource = datasource
-        self.workers = workers
         self.logger = logger
 
-        self.pg_conn()
-
-    def pg_conn(self):
+    @staticmethod
+    def is_int(s):
         try:
-            self.logger.debug('connecting postgresql')
-            conn = psycopg2.connect(dbname="{{ postgresql_db_name }}",
-                                    user="{{ postgresql_user_name }}",
-                                    password="{{ postgresql_user_password }}",
-                                    port="{{ postgresql_port }}")
-        except:
-            self.logger.error('Could not connect to postgresql')
-            sys.exit(1)
-        self.conn = conn
+            if int(s) >= 0:
+                return True
+            return False
+        except ValueError:
+            return False
 
-    def worker(chunk, self, datasource):
+    def worker(self, reader, datasource, conn):
+        self.logger.debug('starting parallel worker...')
+
         SQL_INS = ""
-        if datasource.split('_')[2] == '3':
+        if datasource == '3':
             SQL_INS = """
             INSERT INTO sessions(sessionid,
                                  device,
                                  duration)
                 VALUES (%s, %s, %s)
             """
-        elif datasource.split('_')[2] == '2':
+        elif datasource == '2':
             SQL_INS = """
             INSERT INTO clicks(sessionid,
                                pageviewid,
@@ -73,7 +57,7 @@ class InjectorService:
                                unresp_clicks)
                 VALUES (%s, %s, %s, %s, %s)
             """
-        else:
+        elif datasource == '1':
             SQL_INS = """
             INSERT INTO mouse_moves(sessionid,
                                     pageviewid,
@@ -82,23 +66,36 @@ class InjectorService:
                                     no_moves)
                 VALUES (%s, %s, %s, %s, %s)
             """
+        else:
+            self.logger.error('Unable to parse datasource')
 
-        cur = self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-
-        self.logger.debug('starting parallel worker...')
-        for rec in chunk:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        reader.next()
+        for rec in reader:
             entry = ()
             for att in rec:
-                if is_int(att):
+                # this is a PK/FK - skip the entry, this info cannot
+                # be referenced to anything
+                if rec[0] == '':
+                    break
+                if InjectorService.is_int(att):
                     entry += (att,)
                 else:
                     entry += (None,)
-            try:
-                cur.execute(INSERT_SQL, entry)
-            except psycopg2.DataError:
-                self.logger.warn('Record %s not inserted!' % entry)
+            if entry:
+                try:
+                    cur.execute(INSERT_SQL, entry)
+                except psycopg2.IntegrityError:
+                    self.logger.warn('Record %s not instered' % rec)
+                    conn.rollback()
+                except psycopg2.DataError:
+                    self.logger.error('ERROR during insertion!! Exit now.')
+                    sys.exit(1)
+                else:
+                    conn.commit()
+            else:
+                self.logger.warn('Record %s not instered' % rec)
 
-        self.conn.commit()
         cur.close()
 
     def injector(self, datasource):
@@ -113,32 +110,39 @@ class InjectorService:
                 continue
             path = os.path.join(self.datasource, datasource)
             if os.path.isfile(path):
-                if not self.session or \
+                if self.session or \
                   datasource.split('_')[2] != '3':
+                    pass
+                else:
                     self.logger.info('no new data for %s, sleeping.' %
                                      datasource)
                     time.sleep(5)
-                    continue
-                self.done = False
-                task = partial(self.worker, datasource)
-                with futures.ThreadPoolExecutor(
-                        max_workers=self.workers) as executor:
-                    futures_instances = []
-                    with open(path) as csvfile:
-                        reader = csv.reader(csvfile)
-                        chunks = [reader[i:i + 100]
-                                  for i in xrange(0, len(reader), 100)]
-                        for c in chunks:
-                            futures_instances.append(executor.submit(task,
-                                                                     rec))
-                        futures.wait(futures_instances)
+                try:
+                    self.logger.debug(' connectiong to postgres...')
+                    conn = psycopg2.connect(dbname="demo",
+                                            user="demo",
+                                            password="demo",
+                                            port="5432")
+                except:
+                    self.logger.error('Could not connect to postgresql')
+                    sys.exit(1)
 
-                        if datasource.split('_')[2] == '3':
-                            self.session = True
-                        ren = os.path.join(self.datasource,
-                                           os.path.splitext(
-                                               datasource)[0] + ".done")
-                        os.rename(path, ren)
+                with open(path) as csvfile:
+                    reader = csv.reader(csvfile)
+                    self.logger.debug('   starting insertion ')
+
+                    self.worker(reader,
+                                datasource.split('_')[2], 
+                                conn)
+
+                    conn.close()
+
+                    if datasource.split('_')[2] == '3':
+                        self.session = True
+                    ren = os.path.join(self.datasource,
+                                       os.path.splitext(
+                                           datasource)[0] + ".done")
+                    os.rename(path, ren)
             else:
                 self.logger.info('no new data for %s, sleeping.' % datasource)
                 time.sleep(5)
@@ -148,23 +152,28 @@ class InjectorService:
         self.logger.info('Thread coordinator is started')
 
         while self.running:
+            d = 0
             for f in self.csv:
                 path = os.path.join(self.datasource, f)
-                if os.path.isfile(path) and self.done:
-                    self.start = True
-                else:
-                    self.start = False
-                    break
+                if os.path.isfile(path):
+                    d += 1
+            if d == len(self.csv) or (self.session and d >= 1):
+                self.start = True
+            else:
+                self.start = False
 
             d = 0
             for g in os.listdir(self.datasource):
                 if g.endswith('.done'):
                     d += 1
-            if d == 3:
-                self.done = True
+            if d == len(self.csv):
+                self.logger.info("Batch ingestion concluded!")
+                self.logger.info("   --- Deleting .done files!! --- ")
                 os.remove(os.path.join(self.datasource, g))
 
-    def start(self):
+            time.sleep(5)
+
+    def launch(self):
         self.running = True
         self.threads = []
 
@@ -188,25 +197,22 @@ class InjectorService:
             time.sleep(1000)
             for t in self.threads:
                 if not t.is_alive():
-                    self.logger.error('A thread crashed unexpectedly!!')
+                    self.logger.error('A thread closed unexpectedly!!')
                     self.running = False
 
         for t in self.threads:
             t.join()
 
-        print 'All injectors threads are going down!'
+        print 'All injector threads are going down!'
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--datasource', help='where data is placed',
-                        required=True, nargs='+')
-    parser.add_argument('-w', '--workers', help='number of parallel workers',
-                        default=3, type=int)
+                        required=True)
 
     args = parser.parse_args()
     datasource = args.datasource
-    workers = args.workers
 
     if datasource is None:
         print >> sys.stderr, '-d option is mandatory'
@@ -214,11 +220,11 @@ def main():
 
     logger = set_loggers()
 
-    i = InjectorService(datasource=datasource, workers=workers, logger=logger)
-    i.start()
+    i = InjectorService(datasource=datasource, logger=logger)
+    i.launch()
 
 
-def set_loggers(destination):
+def set_loggers():
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.{{ injector_log_level }})
     handler = logging.FileHandler("{{ injector_log_destination }}")
