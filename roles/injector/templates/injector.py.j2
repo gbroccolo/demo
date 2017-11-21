@@ -79,7 +79,25 @@ class InjectorService:
                 if rec[0] == '':
                     break
                 if InjectorService.is_int(att):
-                    entry += (att,)
+                    if datasource == '1':
+                        if att == rec[3]:
+                            try:
+                                cur_r = conn.cursor(
+                                     cursor_factory=psycopg2.extras.DictCursor)
+                                cur_r.execute("SELECT duration FROM sessions \
+                                               WHERE sessionid = %s",
+                                               (rec[0],))
+                                if int(cur_r.fetchone()['duration']) < int(att):
+                                    self.logger.info('mouse duration not '
+                                                     'compatible session one')
+                                    ins = False
+                                else:
+                                    entry += (att,)
+                                cur_r.close()
+                            except TypeError:
+                                ins = False
+                    else:
+                        entry += (att,)
                 else:
                     entry += (None,)
             if entry:

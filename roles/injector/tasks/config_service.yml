@@ -6,16 +6,8 @@
     dest: "/etc/supervisor.d/injector.conf"
     owner: root
     group: root 
+  become: yes
 
 - name: update supervisor if necessary
   shell: "supervisorctl update"
-
-- name: ensure injector service is present
-  supervisorctl:
-    name: "injector:"
-    state: present
-
-- name: ensure druid_reindexer_service is running
-  supervisorctl:
-    name: "injector:"
-    state: started
+  become: yes

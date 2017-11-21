@@ -1,5 +1,5 @@
 [program:injector]
-command={{ work_dir }}/venv/bin/python injector.py -d {{ datasource_dir }} -w 2
+command={{ work_dir }}/venv/bin/python {{ work_dir }}/injector.py -d {{ datasource_dir }}
 directory={{ work_dir }}
 user={{ injector_user }}
 autostart=True
