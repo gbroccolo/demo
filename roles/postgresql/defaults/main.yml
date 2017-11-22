@@ -4,3 +4,5 @@ postgresql_version: '10'
 postgresql_db_name: 'demo'
 postgresql_user_name: 'demo'
 postgresql_user_password: 'demo'
+
+postgresql_scripts_dir: 'sql'

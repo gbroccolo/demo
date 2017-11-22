@@ -1,0 +1,27 @@
+---
+
+- name: run the 1st query
+  shell: "psql -U demo -d demo -f /home/ubuntu/sql/question_1.sql"
+  register: result
+  tags:
+    - question_1
+
+- name: run the 2nd query
+  shell: "psql -U demo -d demo -f /home/ubuntu/sql/question_2.sql"
+  register: result
+  tags:
+    - question_2
+
+- name: run the 3rd query
+  shell: "psql -U demo -d demo -f /home/ubuntu/sql/question_3.sql"
+  register: result
+  tags:
+    - question_3
+
+- name: display the result
+  debug:
+    msg: "{{ result.stdout_lines }}"
+  tags:
+    - question_1
+    - question_2
+    - question_3

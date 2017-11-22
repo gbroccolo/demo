@@ -1,0 +1,23 @@
+---
+
+- name: create work dir
+  become: yes
+  file:
+    path: "/home/ubuntu/{{ postgresql_scripts_dir }}"
+    owner: 'ubuntu'
+    group: 'ubuntu'
+    mode: 0755
+    state: directory
+
+- name: install scripts
+  become:
+  copy:
+    src: "{{ item }}"
+    dest: "/home/ubuntu/{{ postgresql_scripts_dir }}/{{ item }}"
+    owner: 'ubuntu'
+    group: 'ubuntu'
+    mode: 0755
+  with_items:
+    - question_1.sql
+    - question_2.sql
+    - question_3.sql

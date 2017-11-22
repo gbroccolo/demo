@@ -30,10 +30,18 @@ ssh ubuntu@<generated-ip> -i <generated-key>-private.pem
 The demo contains:
 * an ingestion service that load data to a PostgreSQL db
 * a confgured PostgreSQL db (`postgresql` Ansible role)
-* an HTTP endpoint service able to query the db
+* some scripts to query the db
 
-The playbook `provision_demo.yml` is used to install and configure the three
-services, running
+The playbook `provision_demo.yml` is used to install and configure services and
+scripts, running
 ```
 ansible-playbook -i ./hosts provision_demo.yml -l demoserver --private-key=<generated-key>-private.pem
+```
+
+## query the db
+
+Ansible can be used to query the db: different tags correspond to different
+queries, see the `query_the_db.yml` playbook. For instance:
+```
+ansible-playbook -i ./hosts query_the_db.yml -l demoserver -t question_1 --private-key=<generated-key>-private.pem
 ```
