@@ -1,0 +1,13 @@
+[program:webserver]
+command={{ webserver_path }}/venv/bin/python {{ webserver_path }}/webserver.py > /dev/null 2>&1
+directory={{ webserver_path }}
+user=root
+autostart=True
+autorestart=True
+startsecs=2
+stopwaitsecs=10
+priority=20
+killasgroup=true
+
+[group:injector]
+programs=injector

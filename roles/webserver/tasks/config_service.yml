@@ -1,0 +1,13 @@
+---
+
+- name: add webserver service to supervisor
+  template:
+    src: webserver.conf.j2
+    dest: "/etc/supervisor.d/webserver.conf"
+    owner: root
+    group: root 
+  become: yes
+
+- name: update supervisor if necessary
+  shell: "supervisorctl update"
+  become: yes

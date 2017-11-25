@@ -1,0 +1,20 @@
+---
+
+- name: create webserver dirs
+  become: yes
+  file:
+    path: "{{ webserver_path }}"
+    owner: "{{ webserver_user }}"
+    group: "{{ webserver_group }}"
+    mode: 0755
+    state: directory
+
+- name: create webserver virtualenv
+  become: yes
+  become_user: "{{ webserver_user }}"
+  pip:
+    name: "{{ item }}"
+    virtualenv: "{{ webserver_path }}/venv"
+  with_items:
+    - psycopg2
+    - tornado

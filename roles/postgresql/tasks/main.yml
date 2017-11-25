@@ -2,4 +2,3 @@
 
 - import_tasks: init.yml
 - import_tasks: setup.yml
-- import_tasks: install_scripts.yml

@@ -3,3 +3,4 @@
     - { role: postgresql, tags: ["postgresql"] }
     - { role: supervisor, tags: ["supervisor"] }
     - { role: injector, tags: ["injector"] }
+    - { role: webserver, tags: ["webserver"] }

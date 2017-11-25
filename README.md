@@ -30,7 +30,7 @@ ssh ubuntu@<generated-ip> -i <generated-key>-private.pem
 The demo contains:
 * an ingestion service that load data to a PostgreSQL db
 * a confgured PostgreSQL db (`postgresql` Ansible role)
-* some scripts to query the db
+* a webserver service able to query the db
 
 The playbook `provision_demo.yml` is used to install and configure services and
 scripts, running
@@ -40,8 +40,51 @@ ansible-playbook -i ./hosts provision_demo.yml -l demoserver --private-key=<gene
 
 ## query the db
 
-Ansible can be used to query the db: different tags correspond to different
-queries, see the `query_the_db.yml` playbook. For instance:
+The demo configure a Webserver service able to query the DB. The server listens
+port 80, and queries can be submitted with the following endpoint:
+
+* first_query/
 ```
-ansible-playbook -i ./hosts query_the_db.yml -l demoserver -t question_1 --private-key=<generated-key>-private.pem
+WITH dev AS (
+    SELECT device,
+           count(*) AS count
+      FROM sessions
+    GROUP BY device)
+SELECT device,
+       max(count) OVER (PARTITION BY device)
+  FROM dev LIMIT 1;
+```
+
+* second_query/
+```
+SELECT sessionid,
+       mouse_distance
+  FROM mouse_moves
+ORDER BY mouse_distance DESC
+  LIMIT 1;
+```
+
+* third_query/
+```
+SELECT CASE WHEN device = 0 THEN 'desktop'
+            WHEN device = 1 THEN 'mobile'
+            WHEN device = 2 THEN 'tablet'
+       END,
+       round(avg_resp_clicks, 2)
+  FROM (
+      SELECT count(a.sessionid) OVER w AS count,
+             b.device AS device,
+             avg(resp_clicks) OVER w AS avg_resp_clicks
+        FROM clicks a INNER JOIN sessions b ON (a.sessionid = b.sessionid)
+        WINDOW w AS (PARTITION BY a.sessionid) ) AS foo
+  WHERE count > 1
+  ORDER BY avg_resp_clicks DESC;
+```
+
+Ex. 
+```
+$ curl -X GET http://34.201.43.88:80/first_query
+
+
+  The most used devise (271 times) is desktop
 ```

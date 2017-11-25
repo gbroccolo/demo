@@ -1,0 +1,10 @@
+---
+
+webserver_user: 'ubuntu'
+webserver_group: 'ubuntu'
+webserver_path: '/home/{{ webserver_user }}/webserver'
+web_server_db_name: 'demo'
+web_server_db_user: 'demo'
+web_server_db_user_password: 'demo'
+web_server_db_port: '5432'
+web_server_port: '80'

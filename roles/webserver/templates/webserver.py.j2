@@ -1,0 +1,119 @@
+import sys
+import psycopg2
+import psycopg2.extras
+import tornado.ioloop
+import tornado.web
+
+class FirstHandler(tornado.web.RequestHandler):
+
+    def get(self):
+        try:
+            conn = psycopg2.connect(dbname="{{ web_server_db_name }}",
+                                    user="{{ web_server_db_user }}",
+                                    password=" {{ web_server_db_user_password }}",
+                                    port="{{ web_server_db_port }}")
+    
+            cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    
+            cur.execute("WITH dev AS ( \
+                             SELECT CASE WHEN device = 0 THEN 'desktop' \
+                                         WHEN device = 1 THEN 'mobile' \
+                                         WHEN device = 2 THEN 'tablet' \
+                                    END AS device, \
+                                    count(*) AS count \
+                               FROM sessions \
+                               GROUP BY device) \
+                         SELECT device, \
+                                max(count) OVER (PARTITION BY device) \
+                           FROM dev LIMIT 1;")
+
+            res = cur.fetchall()
+            self.write("\n\n  The most used devise (%d times) is %s\n\n" % (
+                                                                      res[0][1],
+                                                                      res[0][0]))
+ 
+            cur.close()
+            conn.close()
+        except:
+            print >> sys.stderr, 'Could not connect to postgresql'
+            sys.exit(1)
+
+class SecondHandler(tornado.web.RequestHandler):
+
+    def get(self):
+        try:
+            conn = psycopg2.connect(dbname="demo",
+                                    user="demo",
+                                    password="demo",
+                                    port="5432")
+    
+            cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    
+            cur.execute("SELECT sessionid, \
+                                mouse_distance \
+                           FROM mouse_moves \
+                           ORDER BY mouse_distance DESC \
+                           LIMIT 1;")
+
+            res = cur.fetchall()
+            self.write("\n\n  The session with the highest mouse activity " 
+                       "(%d scrolls) is the number %d\n\n" % (res[0][1],
+                                                              res[0][0]))
+ 
+            cur.close()
+            conn.close()
+        except:
+            print >> sys.stderr, 'Could not connect to postgresql'
+            sys.exit(1)
+
+class ThirdHandler(tornado.web.RequestHandler):
+
+    def get(self):
+        try:
+            conn = psycopg2.connect(dbname="demo",
+                                    user="demo",
+                                    password="demo",
+                                    port="5432")
+    
+            cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    
+            cur.execute("SELECT CASE WHEN device = 0 THEN 'desktop' \
+                                     WHEN device = 1 THEN 'mobile' \
+                                     WHEN device = 2 THEN 'tablet' \
+                                END, \
+                                round(avg_resp_clicks, 2) \
+                           FROM ( \
+                               SELECT count(a.sessionid) OVER w AS count, \
+                                      b.device AS device, \
+                                      avg(resp_clicks) OVER w AS avg_resp_clicks \
+                                 FROM clicks a INNER JOIN sessions b ON (a.sessionid = b.sessionid) \
+                                 WINDOW w AS (PARTITION BY a.sessionid) ) AS foo \
+                           WHERE count > 1 \
+                           ORDER BY avg_resp_clicks DESC;")
+
+            res = cur.fetchall()
+            self.write("\n\n  Avg. responsive clicks per sessions per session "
+                       " for each device\n\n")
+            self.write("           dev.\t resp_clicks\n")
+            for rec in res:
+                self.write("           %s\t %s\n" % (rec[0], rec[1]))  
+            self.write("\n\n") 
+
+            cur.close()
+            conn.close()
+        except:
+            print >> sys.stderr, 'Could not connect to postgresql'
+            sys.exit(1)
+
+
+def make_app():
+    return tornado.web.Application([
+        (r"/first_query", FirstHandler),
+        (r"/second_query", SecondHandler),
+        (r"/third_query", ThirdHandler),
+    ])
+
+if __name__ == "__main__":
+    app = make_app()
+    app.listen({{ web_server_port }})
+    tornado.ioloop.IOLoop.current().start()
