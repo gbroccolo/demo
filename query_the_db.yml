@@ -1,3 +1,0 @@
-- hosts: demoserver
-  roles:
-    - run_query
