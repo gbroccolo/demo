@@ -83,7 +83,7 @@ SELECT CASE WHEN device = 0 THEN 'desktop'
 
 Ex. 
 ```
-$ curl -X GET http://34.201.43.88:80/first_query
+$ curl -X GET http://<generated-ip>/first_query
 
 
   The most used devise (271 times) is desktop
